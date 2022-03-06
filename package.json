@@ -1,0 +1,19 @@
+{
+  "name": "deepspeech-nodejs_wav",
+  "version": "1.0.0",
+  "description": "Simple audio processing",
+  "main": "index.js",
+  "scripts": {
+    "start": "node ./index.js"
+  },
+  "dependencies": {
+    "argparse": "^1.0.10",
+    "body-parser": "^1.19.2",
+    "deepspeech": "0.9.3",
+    "express": "^4.17.3",
+    "node-wav": "0.0.2",
+    "sox-stream": "^2.0.3",
+    "util": "^0.11.1"
+  },
+  "license": "Public domain"
+}
