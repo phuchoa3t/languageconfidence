@@ -19,6 +19,10 @@ app.use(bodyParser.json({
 	limit: '50mb'
 }))
 app.post('/', (req, res) => {
+	// words.push(word.text) //text
+	// timeStarts.push(word.start) // start
+	let originalText = req.body.text.replace(/[^a-zA-Z ]/gi, '').toLowerCase().split(' ');
+	// console.log(words, timeStarts)
 	// res.send('Hello World!')
 	let modelPath = './deepspeech-0.9.3-models.pbmm';
 
@@ -40,6 +44,7 @@ app.post('/', (req, res) => {
 
 	console.log()
 	let base64 = req.body.buffer;
+	
 	let buffer = Buffer.from(base64, 'base64')
 	// let buffer = Fs.readFileSync(audioFile);
 
@@ -122,7 +127,27 @@ app.post('/', (req, res) => {
 				}
 			}
 			console.log(wordStartIndex, wordEndIndex)
+			let arr = words.slice(wordStartIndex, wordEndIndex + 1);
+			let index = []
+			let matches = arr.map(w => {
+				return originalText.findIndex((x, i, a) => {
+					if (x == w && index.indexOf(i) == -1) {
+						index.push(i)
+						return true;
+					}
+					return false;
+				})
+			})
+			for (let i = matches.length - 1; i > 0; i--) {
+				if (matches[i] - matches[i - 1] == 1) {
+					wordEndIndex = i;
+					break;
+				}
+			}
+			wordEndIndex += matches.filter((d, i)=> {return d == -1 && i <= wordEndIndex}).length
 
+			arr = originalText.slice(wordStartIndex, wordEndIndex + 1);
+			originalText.splice(wordStartIndex, wordEndIndex + 1)
 			totalEndSeconds = timeStarts[wordEndIndex];
 			hours = Math.floor(totalEndSeconds / 3600);
 			hours = hours < 10 ? ('0' + hours) : hours;
@@ -140,7 +165,7 @@ app.post('/', (req, res) => {
 			minutesStart = minutesStart < 10 ? ('0' + minutesStart) : minutesStart;
 			secondsStart = totalStartSeconds % 60;
 			secondsStart = secondsStart < 10 ? ('0' + secondsStart) : secondsStart;
-			let arr = words.slice(wordStartIndex, wordEndIndex + 1);
+			
 			let name = (Math.random() + 1).toString(36).substring(7) + '.wav'
 			var ffmpeg = spawn('ffmpeg', [
 				'-i',
