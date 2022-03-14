@@ -35,7 +35,7 @@ app.post('/', (req, res) => {
 	model.enableExternalScorer(scorerPath);
 
 	let audioFile = process.argv[2] || './audio/ok.wav';
-	// let 
+	// let
 	if (!Fs.existsSync(audioFile)) {
 		console.log('file missing:', audioFile);
 		process.exit();
@@ -44,7 +44,7 @@ app.post('/', (req, res) => {
 
 	console.log()
 	let base64 = req.body.buffer;
-	
+
 	let buffer = Buffer.from(base64, 'base64')
 	// let buffer = Fs.readFileSync(audioFile);
 
@@ -92,63 +92,80 @@ app.post('/', (req, res) => {
 
 		let words = [];
 		let timeStarts = [];
+		let timeEnds = [];
 		let word = {
 			text: '',
 			start: 0
 		};
 		result.transcripts[0].tokens.forEach(item => {
+			console.log(item)
+			
 			if (item.text == ' ') {
 				words.push(word.text)
 				timeStarts.push(word.start)
+				timeEnds.push(word.end)
 				word = {
 					text: '',
-					start: 0
+					start: word.end
 				};
 			} else {
+				word.end = item.start_time
 				word.text += item.text
-				if (word.start === 0) {
-					word.start = item.start_time
-				}
 			}
 		})
 
 		words.push(word.text) //text
 		timeStarts.push(word.start) // start
-		console.log(words, timeStarts)
+		timeEnds.push(word.end) // start
+		console.log(words, timeStarts,timeEnds, originalText)
 		result = [];
-		while (words.length) {
+		let isFirst = true;
+		let end = false;
+		while (words.length && !end) {
 			wordStartIndex = 0
-			wordEndIndex = words[0];
-			for (let i = 1; i < words.length; i++) {
-				if (timeStarts[i] - timeStarts[wordStartIndex] < 15) {
-					wordEndIndex = i
-				} else {
-					break;
-				}
-			}
-			console.log(wordStartIndex, wordEndIndex)
-			let arr = words.slice(wordStartIndex, wordEndIndex + 1);
-			let index = []
-			let matches = arr.map(w => {
-				return originalText.findIndex((x, i, a) => {
-					if (x == w && index.indexOf(i) == -1) {
-						index.push(i)
-						return true;
+			if (timeEnds[words.length - 1] - timeStarts[wordStartIndex] < 15) {
+				wordEndIndex = words.length - 1;
+				end = true;
+			} else {
+				for (let i = 1; i < words.length; i++) {
+					if (timeEnds[i] - timeStarts[wordStartIndex] < 15) {
+						wordEndIndex = i
+					} else {
+						break;
 					}
-					return false;
-				})
-			})
-			for (let i = matches.length - 1; i > 0; i--) {
-				if (matches[i] - matches[i - 1] == 1) {
-					wordEndIndex = i;
-					break;
 				}
 			}
-			wordEndIndex += matches.filter((d, i)=> {return d == -1 && i <= wordEndIndex}).length
 
-			arr = originalText.slice(wordStartIndex, wordEndIndex + 1);
-			originalText.splice(wordStartIndex, wordEndIndex + 1)
-			totalEndSeconds = timeStarts[wordEndIndex];
+			let arr = end? words: words.slice(wordStartIndex, wordEndIndex + 1);
+			console.log('1',wordEndIndex)
+			if(!end) {
+				let index = []
+				let matches = arr.map(w => {
+					return originalText.findIndex((x, i, a) => {
+						if (x == w && index.indexOf(i) == -1) {
+							index.push(i)
+							return true;
+						}
+						return false;
+					})
+				})
+				
+				for (let i = matches.length - 1; i > 0; i--) {
+					if (matches[i] - matches[i - 1] == 1) {
+						wordEndIndex = i;
+						break;
+					}
+				}
+				console.log('2', wordEndIndex, matches)
+				arr = originalText.slice(wordStartIndex, matches[wordEndIndex] + 1);
+				originalText.splice(wordStartIndex, matches[wordEndIndex] + 1)
+				// wordEndIndex += 1;
+			} else {
+				arr = originalText;
+				// originalText.splice(wordStartIndex, originalText.length)
+			}
+			// console.log(arr.join(' '))
+			totalEndSeconds = timeEnds[wordEndIndex];
 			hours = Math.floor(totalEndSeconds / 3600);
 			hours = hours < 10 ? ('0' + hours) : hours;
 			totalEndSeconds %= 3600;
@@ -157,7 +174,7 @@ app.post('/', (req, res) => {
 			seconds = totalEndSeconds % 60;
 			seconds = seconds < 10 ? ('0' + seconds) : seconds;
 
-			totalStartSeconds = timeStarts[wordStartIndex];
+			totalStartSeconds = isFirst?0: timeStarts[wordStartIndex];
 			hoursStart = Math.floor(totalStartSeconds / 3600);
 			hoursStart = hoursStart < 10 ? ('0' + hoursStart) : hoursStart;
 			totalStartSeconds %= 3600;
@@ -165,8 +182,23 @@ app.post('/', (req, res) => {
 			minutesStart = minutesStart < 10 ? ('0' + minutesStart) : minutesStart;
 			secondsStart = totalStartSeconds % 60;
 			secondsStart = secondsStart < 10 ? ('0' + secondsStart) : secondsStart;
-			
+			console.log(wordStartIndex, wordEndIndex,secondsStart, seconds )
+
 			let name = (Math.random() + 1).toString(36).substring(7) + '.wav'
+			let endFF = end? []: ['-to',
+			hours + ":" + minutes + ":" + seconds];
+			console.log([
+				'-i',
+				'file.wav',
+				
+				
+				'-ss',
+				hoursStart + ":" + minutesStart + ":" + secondsStart,
+				...endFF,
+				'-c',
+				'copy',
+				name,
+			])
 			var ffmpeg = spawn('ffmpeg', [
 				'-i',
 				'file.wav',
@@ -174,8 +206,7 @@ app.post('/', (req, res) => {
 				'copy',
 				'-ss',
 				hoursStart + ":" + minutesStart + ":" + secondsStart,
-				'-t',
-				hours + ":" + minutes + ":" + seconds,
+				...endFF,
 				name,
 			]);
 			result.push({
@@ -184,6 +215,8 @@ app.post('/', (req, res) => {
 			})
 			words.splice(wordStartIndex, wordEndIndex + 1)
 			timeStarts.splice(wordStartIndex, wordEndIndex + 1)
+			timeEnds.splice(wordStartIndex, wordEndIndex + 1)
+			isFirst = false;
 			// return;
 		}
 		res.send(result)
@@ -195,3 +228,4 @@ app.post('/', (req, res) => {
 app.listen(port, () => {
 	console.log(`Example app listening on port ${port}`)
 })
+// The boy was there when the sun rose a rod is used to catch pink salmon the source of the huge river is the clear spring kick the ball straight and follow through help the woman get back to her feet a pot of tea helps to pass the evening smoky fires lack flame and heat the soft cushion broke the man's fall the salt breeze came across from the sea the girl at the booth sold fifty bonds.
