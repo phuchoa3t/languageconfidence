@@ -33,20 +33,9 @@ app.post('/', (req, res) => {
 	let scorerPath = './deepspeech-0.9.3-models.scorer';
 
 	model.enableExternalScorer(scorerPath);
-
-	let audioFile = process.argv[2] || './audio/ok.wav';
-	// let
-	if (!Fs.existsSync(audioFile)) {
-		console.log('file missing:', audioFile);
-		process.exit();
-	}
-
-
-	console.log()
 	let base64 = req.body.buffer;
 
 	let buffer = Buffer.from(base64, 'base64')
-	// let buffer = Fs.readFileSync(audioFile);
 
 	Fs.writeFileSync('file.wav', buffer);
 
