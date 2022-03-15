@@ -213,6 +213,13 @@ app.post('/', (req, res) => {
 				text: arr.join(' '),
 				buffer: Fs.readFileSync(name, 'base64')
 			})
+
+			try {
+				Fs.unlinkSync(name)
+			//file removed
+			} catch(err) {
+				console.error(err)
+			}
 			words.splice(wordStartIndex, wordEndIndex + 1)
 			timeStarts.splice(wordStartIndex, wordEndIndex + 1)
 			timeEnds.splice(wordStartIndex, wordEndIndex + 1)
