@@ -36,8 +36,8 @@ app.post('/', (req, res) => {
 	let base64 = req.body.buffer;
 
 	let buffer = Buffer.from(base64, 'base64')
-
-	Fs.writeFileSync('file.wav', buffer);
+	let fileName = (Math.random() + 1).toString(36).substring(7) + '.wav'
+	Fs.writeFileSync(fileName, buffer);
 
 	const result = Wav.decode(buffer);
 
@@ -178,7 +178,7 @@ app.post('/', (req, res) => {
 			hours + ":" + minutes + ":" + seconds];
 			console.log([
 				'-i',
-				'file.wav',
+				fileName,
 				
 				
 				'-ss',
@@ -190,7 +190,7 @@ app.post('/', (req, res) => {
 			])
 			var ffmpeg = spawn('ffmpeg', [
 				'-i',
-				'file.wav',
+				fileName,
 				'-acodec',
 				'copy',
 				'-ss',
@@ -215,6 +215,7 @@ app.post('/', (req, res) => {
 			isFirst = false;
 			// return;
 		}
+		Fs.unlinkSync(fileName)
 		res.send(result)
 		// Fs.writeFileSync('./out.text', JSON.stringify(result))
 	});
